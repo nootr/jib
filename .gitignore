@@ -1,0 +1,8 @@
+# Vim
+*.swp
+
+# Cargo
+target/
+
+# MacOS
+.DS_Store

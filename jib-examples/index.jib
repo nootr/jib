@@ -1,0 +1,48 @@
+<hgroup>
+    {% if title.is_some() %}
+    <h1>{title.unwrap()}</h1>
+    {% endif %}
+    <p>Count: {count}</p>
+    <button on:click="Decrement">-</button>
+    <button on:click="Increment">+</button>
+</hgroup>
+
+<style>
+    h1 {
+        color: black;
+    }
+    p {
+        color: red;
+    }
+</style>
+
+<script>
+    # This is (obviously) not Javascript, but our own language.
+    enum Msg = {
+        Increment |
+        Decrement
+    };
+
+    type Model = {
+        title: Maybe<string>,
+        count: number,
+    };
+
+    fn init(title: Maybe<string>) : Model {
+        # The attributes of the resulting web component will be passed to this function
+        Model(
+            title: match {
+                Some(x) => x,
+                None => "",
+            },
+            count: 0,
+        )
+    };
+
+    fn update(msg: Msg, model: Model) : Model {
+        match msg {
+            Increment => Model(count: model.count + 1, ..model),
+            Decrement => Model(count: model.count - 1, ..model),
+        }
+    };
+</script>
