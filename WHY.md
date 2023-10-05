@@ -23,8 +23,8 @@ People who are familiar with languages like Haskell, Elm or Rust already know a 
 ```rust
 let baz = vec!["hello", "world"];
 
-baz.get(1);  # -> Some("world")
-baz.get(3);  # -> None
+baz.get(1);  // -> Some("world")
+baz.get(3);  // -> None
 ```
 
 In other words, the `get` function returns an `Option<T>` type which is either `Some(T)` or `None` (`T` being `&str` in this example). Now, this value has to be unwrapped before we can use it, forcing us to think about the case where `None` is returned.
