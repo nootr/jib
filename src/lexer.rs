@@ -1,5 +1,4 @@
-use std::fs::File;
-use std::io::{self, BufRead, Lines};
+use std::fs;
 use std::path::Path;
 
 #[derive(Debug, Default, Eq, PartialEq)]
@@ -21,54 +20,54 @@ pub struct Token {
 }
 
 #[derive(Debug)]
-pub struct Lexer<S: LexerState> {
-    stream: Lines<io::BufReader<File>>,
+pub struct Lexer {
+    file: String,
     filepath: String,
+    offset: usize,
     line_number: usize,
-    marker: std::marker::PhantomData<S>,
 }
 
-pub enum Initial {}
-pub enum ReadingText {}
+impl Lexer {
+    pub fn new(filepath: &Path) -> Lexer {
+        let file = fs::read_to_string(filepath).expect("should be able to read file");
 
-pub trait LexerState {}
-
-impl LexerState for Initial {}
-impl LexerState for ReadingText {}
-
-impl Lexer<Initial> {
-    pub fn new(filepath: &Path) -> Self {
-        let file = File::open(filepath).expect("should be able to open a file");
-
-        Self {
-            stream: io::BufReader::new(file).lines(),
+        Lexer {
+            file,
             filepath: filepath
                 .to_str()
                 .expect("should be able to convert a path to string")
                 .to_string(),
+            offset: 0,
             line_number: 0,
-            marker: std::marker::PhantomData,
         }
     }
 
-    pub fn get_token(&mut self) -> Result<Token, io::Error> {
-        let maybe_value = self.stream.next();
-        self.line_number += 1;
+    pub fn get_token(&mut self) -> Token {
+        let left_to_parse = &self.file[self.offset..];
 
-        if let Some(value) = maybe_value {
-            Ok(Token {
+        // TODO: find value using regexes
+        let value = if left_to_parse.len() > 8 {
+            left_to_parse[..8].to_string()
+        } else {
+            left_to_parse.to_string()
+        };
+
+        self.offset += value.len();
+
+        if !value.is_empty() {
+            Token {
+                token_type: TokenType::Text,
                 filepath: self.filepath.clone(),
                 line_number: self.line_number,
-                value: value?,
-                ..Default::default()
-            })
+                value,
+            }
         } else {
-            Ok(Token {
+            Token {
                 token_type: TokenType::EndOfFile,
                 filepath: self.filepath.clone(),
                 line_number: self.line_number,
                 ..Default::default()
-            })
+            }
         }
     }
 }

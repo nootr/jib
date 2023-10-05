@@ -21,7 +21,7 @@ fn main() {
 
         let mut lexer = Lexer::new(filepath);
         loop {
-            let token = lexer.get_token().expect("should get a token");
+            let token = lexer.get_token();
             debug!("{:?}", token);
             if token.token_type == TokenType::EndOfFile {
                 break;
