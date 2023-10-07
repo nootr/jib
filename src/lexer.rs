@@ -1,11 +1,16 @@
+//! Lexer library for Jib files
+
 use regex::Regex;
 use std::fs;
 use std::path::Path;
 use std::slice::Iter;
 
+/// The token type.
+#[allow(missing_docs)]
 #[derive(Debug, Default, Eq, PartialEq, Clone)]
 pub enum TokenType {
     #[default]
+    Unknown,
     Comment,
     Text,
     TagOpen,
@@ -27,10 +32,10 @@ pub enum TokenType {
     Comma,
     Period,
     EndOfFile,
-    Unknown,
 }
 
 impl TokenType {
+    /// Returns the regex for this token type.
     fn regex(&self) -> Regex {
         match self {
             // TODO: find way to only generate regexes once
@@ -59,6 +64,7 @@ impl TokenType {
         }
     }
 
+    /// Returns an iterator over all the token types, except for [TokenType::Unknown].
     pub fn into_iter() -> Iter<'static, TokenType> {
         static TOKEN_TYPES: [TokenType; 21] = [
             TokenType::Comment,
@@ -87,14 +93,34 @@ impl TokenType {
     }
 }
 
+/// A token containing all the info for parsing, code generation and troubleshooting.
 #[derive(Debug, Default)]
 pub struct Token {
+    /// The token type.
     pub token_type: TokenType,
+
+    /// The file path of the source code.
     pub filepath: String,
+
+    /// The line number in the source code.
     pub line_number: usize,
+
+    /// The original string value within the source code.
     pub value: String,
 }
 
+/// Turns source code into a stream of tokens.
+///
+/// Use `Lexer::into_iter()` to iterate over the tokens.
+///
+/// # Example
+///
+/// ```
+/// use jib::lexer::Lexer;
+///
+/// let lexer = Lexer::from_source("<div>Hello</div>".to_string(), None);
+/// assert_eq!(lexer.into_iter().count(), 7);
+/// ```
 #[derive(Debug)]
 pub struct Lexer {
     file_content: String,
@@ -104,13 +130,22 @@ pub struct Lexer {
 }
 
 impl Lexer {
+    /// Creates a new lexer.
     pub fn new(filepath: &Path) -> Lexer {
+        let file_content = fs::read_to_string(filepath).expect("should be able to read file");
+        let filepath = filepath
+            .to_str()
+            .expect("should be able to convert a path to string")
+            .to_string();
+
+        Lexer::from_source(file_content, Some(filepath))
+    }
+
+    /// Creates a new lexer from a string.
+    pub fn from_source(file_content: String, filepath: Option<String>) -> Lexer {
         Lexer {
-            file_content: fs::read_to_string(filepath).expect("should be able to read file"),
-            filepath: filepath
-                .to_str()
-                .expect("should be able to convert a path to string")
-                .to_string(),
+            file_content,
+            filepath: filepath.unwrap_or_default(),
             offset: 0,
             line_number: 1,
         }
@@ -125,11 +160,11 @@ impl Lexer {
         }
     }
 
-    fn get_token(&mut self) -> Token {
+    fn get_token(&mut self) -> Option<Token> {
         let left_to_parse = &self.file_content[self.offset..];
 
         if left_to_parse.is_empty() {
-            return self.create_token(TokenType::EndOfFile, None);
+            return None;
         }
 
         let (token_type, value) = TokenType::into_iter()
@@ -149,7 +184,7 @@ impl Lexer {
             self.line_number += 1;
         }
 
-        self.create_token(token_type.clone(), Some(value))
+        Some(self.create_token(token_type.clone(), Some(value)))
     }
 }
 
@@ -157,6 +192,6 @@ impl Iterator for Lexer {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
-        Some(self.get_token())
+        self.get_token()
     }
 }
