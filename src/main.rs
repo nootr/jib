@@ -19,9 +19,8 @@ fn main() {
         let filepath = entry.path();
         debug!("Opening file: `{}`", filepath.display());
 
-        let mut lexer = Lexer::new(filepath);
-        loop {
-            let token = lexer.get_token();
+        let lexer = Lexer::new(filepath);
+        for token in lexer.into_iter() {
             debug!("{:?}", token);
             if token.token_type == TokenType::EndOfFile {
                 break;

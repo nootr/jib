@@ -1,5 +1,5 @@
 <hgroup>
-    <j-if "title.is_some()" >
+    <j-show when="title.is_some()" >
         <h1><j-text value="title.unwrap()" /></h1>
     </j-if>
     <p>Count: <j-text value="count"/></p>

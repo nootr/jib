@@ -16,4 +16,5 @@ name = "jib"
 clap = { version = "4.4.6", features = ["derive"] }
 env_logger = "0.10.0"
 log = "0.4.20"
+regex = "1.9.6"
 walkdir = "2.4.0"
