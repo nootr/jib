@@ -27,6 +27,7 @@ pub enum TokenType {
     Comma,
     Period,
     EndOfFile,
+    Unknown,
 }
 
 impl TokenType {
@@ -54,6 +55,7 @@ impl TokenType {
             TokenType::Comma => Regex::new(r"^,").unwrap(),
             TokenType::Period => Regex::new(r"^\.").unwrap(),
             TokenType::Text => Regex::new(r"^[\w:][\w\-:]*").unwrap(),
+            TokenType::Unknown => panic!("should not call regex() for unknown token type"),
         }
     }
 
@@ -123,16 +125,14 @@ impl Lexer {
         }
     }
 
-    fn get_token(&mut self) -> Result<Token, String> {
-        // TODO: only tokenize tags and the content of root.<script>, everything else should be
-        // marked as text.
+    fn get_token(&mut self) -> Token {
         let left_to_parse = &self.file_content[self.offset..];
 
         if left_to_parse.is_empty() {
-            return Ok(self.create_token(TokenType::EndOfFile, None));
+            return self.create_token(TokenType::EndOfFile, None);
         }
 
-        let Some((token_type, value)) = TokenType::into_iter()
+        let (token_type, value) = TokenType::into_iter()
             // Generate regex matches
             .map(|t| (t, t.regex().captures(left_to_parse)))
             // Filter matches
@@ -141,19 +141,15 @@ impl Lexer {
             .map(|(t, m)| (t, m.unwrap().get(0).unwrap().as_str().to_string()))
             // Take single match
             .next()
-        else {
-            return Err(format!(
-                "Syntax error at {}:{}",
-                self.filepath, self.line_number
-            ));
-        };
+            .unwrap_or((&TokenType::Unknown, left_to_parse[0..1].to_string()));
+
         self.offset += value.len();
 
         if *token_type == TokenType::Newline {
             self.line_number += 1;
         }
 
-        Ok(self.create_token(token_type.clone(), Some(value)))
+        self.create_token(token_type.clone(), Some(value))
     }
 }
 
@@ -161,12 +157,6 @@ impl Iterator for Lexer {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.get_token() {
-            Ok(token) => Some(token),
-            Err(e) => {
-                eprintln!("{}", e);
-                None
-            }
-        }
+        Some(self.get_token())
     }
 }
