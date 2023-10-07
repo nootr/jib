@@ -133,8 +133,7 @@ impl Lexer {
 
         let (token_type, value) = self
             .regexes
-            .clone()
-            .into_iter()
+            .iter()
             // Generate regex matches
             .map(|(t, r)| (t, r.captures(left_to_parse)))
             // Filter matches
@@ -143,11 +142,11 @@ impl Lexer {
             .map(|(t, m)| (t, m.unwrap().get(0).unwrap().as_str().to_string()))
             // Take single match
             .next()
-            .unwrap_or((TokenType::Unknown, left_to_parse[0..1].to_string()));
+            .unwrap_or((&TokenType::Unknown, left_to_parse[0..1].to_string()));
 
         self.offset += value.len();
 
-        if token_type == TokenType::Newline {
+        if *token_type == TokenType::Newline {
             self.line_number += 1;
         }
 
