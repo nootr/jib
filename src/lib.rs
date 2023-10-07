@@ -7,6 +7,9 @@
 //!
 //! [jib]: https://github.com/nootr/jib
 
+#![doc(
+    html_logo_url = "https://github.com/nootr/jib/assets/16090423/1d886605-d485-4f7a-be3f-82642f14823e"
+)]
 #![warn(missing_docs)]
 
 pub mod args;
