@@ -21,7 +21,7 @@ pub struct Token {
 
 #[derive(Debug)]
 pub struct Lexer {
-    file: String,
+    file_content: String,
     filepath: String,
     offset: usize,
     line_number: usize,
@@ -29,10 +29,8 @@ pub struct Lexer {
 
 impl Lexer {
     pub fn new(filepath: &Path) -> Lexer {
-        let file = fs::read_to_string(filepath).expect("should be able to read file");
-
         Lexer {
-            file,
+            file_content: fs::read_to_string(filepath).expect("should be able to read file"),
             filepath: filepath
                 .to_str()
                 .expect("should be able to convert a path to string")
@@ -42,8 +40,17 @@ impl Lexer {
         }
     }
 
+    fn create_token(&self, token_type: TokenType, value: Option<String>) -> Token {
+        Token {
+            token_type,
+            value: value.unwrap_or_default(),
+            filepath: self.filepath.clone(),
+            line_number: self.line_number,
+        }
+    }
+
     pub fn get_token(&mut self) -> Token {
-        let left_to_parse = &self.file[self.offset..];
+        let left_to_parse = &self.file_content[self.offset..];
 
         // TODO: find value using regexes
         let value = if left_to_parse.len() > 8 {
@@ -55,19 +62,9 @@ impl Lexer {
         self.offset += value.len();
 
         if !value.is_empty() {
-            Token {
-                token_type: TokenType::Text,
-                filepath: self.filepath.clone(),
-                line_number: self.line_number,
-                value,
-            }
+            self.create_token(TokenType::Text, Some(value))
         } else {
-            Token {
-                token_type: TokenType::EndOfFile,
-                filepath: self.filepath.clone(),
-                line_number: self.line_number,
-                ..Default::default()
-            }
+            self.create_token(TokenType::EndOfFile, None)
         }
     }
 }
