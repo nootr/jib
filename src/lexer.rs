@@ -3,7 +3,6 @@
 use regex::Regex;
 use std::fs;
 use std::path::Path;
-use std::slice::Iter;
 
 /// The token type.
 #[allow(missing_docs)]
@@ -32,65 +31,6 @@ pub enum TokenType {
     Comma,
     Period,
     EndOfFile,
-}
-
-impl TokenType {
-    /// Returns the regex for this token type.
-    fn regex(&self) -> Regex {
-        match self {
-            // TODO: find way to only generate regexes once
-            TokenType::Comment => Regex::new(r"^#[^\n\r]*").unwrap(),
-            TokenType::TagOpen => Regex::new(r"^<").unwrap(),
-            TokenType::TagEndOpen => Regex::new(r"^</").unwrap(),
-            TokenType::TagClose => Regex::new(r"^>").unwrap(),
-            TokenType::TagSingleClose => Regex::new(r"^/>").unwrap(),
-            TokenType::EndOfFile => Regex::new(r"^$").unwrap(),
-            TokenType::Whitespace => Regex::new(r"^[\s\t]+").unwrap(),
-            TokenType::Newline => Regex::new(r"^[\n\r]").unwrap(),
-            TokenType::StringLiteral => Regex::new("^\".*?\"").unwrap(),
-            TokenType::Equal => Regex::new(r"^=").unwrap(),
-            TokenType::Minus => Regex::new(r"^-").unwrap(),
-            TokenType::Plus => Regex::new(r"^\+").unwrap(),
-            TokenType::CurlyBracketOpen => Regex::new(r"^\{").unwrap(),
-            TokenType::CurlyBracketClose => Regex::new(r"^\}").unwrap(),
-            TokenType::BracketOpen => Regex::new(r"^\(").unwrap(),
-            TokenType::BracketClose => Regex::new(r"^\)").unwrap(),
-            TokenType::SemiColon => Regex::new(r"^;").unwrap(),
-            TokenType::Pipe => Regex::new(r"^\|").unwrap(),
-            TokenType::Comma => Regex::new(r"^,").unwrap(),
-            TokenType::Period => Regex::new(r"^\.").unwrap(),
-            TokenType::Text => Regex::new(r"^[\w:][\w\-:]*").unwrap(),
-            TokenType::Unknown => panic!("should not call regex() for unknown token type"),
-        }
-    }
-
-    /// Returns an iterator over all the token types, except for [TokenType::Unknown].
-    pub fn into_iter() -> Iter<'static, TokenType> {
-        static TOKEN_TYPES: [TokenType; 21] = [
-            TokenType::Comment,
-            TokenType::Newline,
-            TokenType::Whitespace,
-            TokenType::TagEndOpen,
-            TokenType::TagOpen,
-            TokenType::TagClose,
-            TokenType::TagSingleClose,
-            TokenType::StringLiteral,
-            TokenType::Equal,
-            TokenType::Minus,
-            TokenType::Plus,
-            TokenType::CurlyBracketOpen,
-            TokenType::CurlyBracketClose,
-            TokenType::BracketOpen,
-            TokenType::BracketClose,
-            TokenType::SemiColon,
-            TokenType::Pipe,
-            TokenType::Comma,
-            TokenType::Period,
-            TokenType::Text,
-            TokenType::EndOfFile,
-        ];
-        TOKEN_TYPES.iter()
-    }
 }
 
 /// A token containing all the info for parsing, code generation and troubleshooting.
@@ -127,6 +67,7 @@ pub struct Lexer {
     filepath: String,
     offset: usize,
     line_number: usize,
+    regexes: Vec<(TokenType, Regex)>,
 }
 
 impl Lexer {
@@ -148,6 +89,29 @@ impl Lexer {
             filepath: filepath.unwrap_or_default(),
             offset: 0,
             line_number: 1,
+            regexes: vec![
+                (TokenType::Comment, Regex::new(r"^#[^\n\r]*").unwrap()),
+                (TokenType::TagOpen, Regex::new(r"^<[^/]").unwrap()),
+                (TokenType::TagEndOpen, Regex::new(r"^</").unwrap()),
+                (TokenType::TagClose, Regex::new(r"^>").unwrap()),
+                (TokenType::TagSingleClose, Regex::new(r"^/>").unwrap()),
+                (TokenType::EndOfFile, Regex::new(r"^$").unwrap()),
+                (TokenType::Whitespace, Regex::new(r"^[\s\t]+").unwrap()),
+                (TokenType::Newline, Regex::new(r"^[\n\r]").unwrap()),
+                (TokenType::StringLiteral, Regex::new("^\".*?\"").unwrap()),
+                (TokenType::Equal, Regex::new(r"^=").unwrap()),
+                (TokenType::Minus, Regex::new(r"^-").unwrap()),
+                (TokenType::Plus, Regex::new(r"^\+").unwrap()),
+                (TokenType::CurlyBracketOpen, Regex::new(r"^\{").unwrap()),
+                (TokenType::CurlyBracketClose, Regex::new(r"^\}").unwrap()),
+                (TokenType::BracketOpen, Regex::new(r"^\(").unwrap()),
+                (TokenType::BracketClose, Regex::new(r"^\)").unwrap()),
+                (TokenType::SemiColon, Regex::new(r"^;").unwrap()),
+                (TokenType::Pipe, Regex::new(r"^\|").unwrap()),
+                (TokenType::Comma, Regex::new(r"^,").unwrap()),
+                (TokenType::Period, Regex::new(r"^\.").unwrap()),
+                (TokenType::Text, Regex::new(r"^[\w:][\w\-:]*").unwrap()),
+            ],
         }
     }
 
@@ -167,20 +131,23 @@ impl Lexer {
             return None;
         }
 
-        let (token_type, value) = TokenType::into_iter()
+        let (token_type, value) = self
+            .regexes
+            .clone()
+            .into_iter()
             // Generate regex matches
-            .map(|t| (t, t.regex().captures(left_to_parse)))
+            .map(|(t, r)| (t, r.captures(left_to_parse)))
             // Filter matches
             .filter(|(_, m)| m.is_some())
             // Unpack matches
             .map(|(t, m)| (t, m.unwrap().get(0).unwrap().as_str().to_string()))
             // Take single match
             .next()
-            .unwrap_or((&TokenType::Unknown, left_to_parse[0..1].to_string()));
+            .unwrap_or((TokenType::Unknown, left_to_parse[0..1].to_string()));
 
         self.offset += value.len();
 
-        if *token_type == TokenType::Newline {
+        if token_type == TokenType::Newline {
             self.line_number += 1;
         }
 
