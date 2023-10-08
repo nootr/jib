@@ -30,7 +30,6 @@ pub enum TokenType {
     Pipe,
     Comma,
     Period,
-    EndOfFile,
 }
 
 /// A token containing all the info for parsing, code generation and troubleshooting.
@@ -40,7 +39,7 @@ pub struct Token {
     pub token_type: TokenType,
 
     /// The file path of the source code.
-    pub filepath: String,
+    pub filepath: Option<String>,
 
     /// The line number in the source code.
     pub line_number: usize,
@@ -59,12 +58,20 @@ pub struct Token {
 /// use jib::lexer::Lexer;
 ///
 /// let lexer = Lexer::from_source("<div>Hello</div>".to_string(), None);
+/// for token in lexer.into_iter() {
+///     // Do something useful with the token
+/// };
+///
+/// let lexer = Lexer::from_source("<div>Hello</div>".to_string(), None);
 /// assert_eq!(lexer.into_iter().count(), 7);
+///
+/// let lexer = Lexer::from_source("Line 1\nLine 2\nLine 3".to_string(), None);
+/// assert_eq!(lexer.into_iter().last().unwrap().line_number, 3);
 /// ```
 #[derive(Debug)]
 pub struct Lexer {
     file_content: String,
-    filepath: String,
+    filepath: Option<String>,
     offset: usize,
     line_number: usize,
     regexes: Vec<(TokenType, Regex)>,
@@ -86,7 +93,7 @@ impl Lexer {
     pub fn from_source(file_content: String, filepath: Option<String>) -> Lexer {
         Lexer {
             file_content,
-            filepath: filepath.unwrap_or_default(),
+            filepath,
             offset: 0,
             line_number: 1,
             regexes: vec![
@@ -95,9 +102,8 @@ impl Lexer {
                 (TokenType::TagEndOpen, Regex::new(r"^</").unwrap()),
                 (TokenType::TagClose, Regex::new(r"^>").unwrap()),
                 (TokenType::TagSingleClose, Regex::new(r"^/>").unwrap()),
-                (TokenType::EndOfFile, Regex::new(r"^$").unwrap()),
-                (TokenType::Whitespace, Regex::new(r"^[\s\t]+").unwrap()),
                 (TokenType::Newline, Regex::new(r"^[\n\r]").unwrap()),
+                (TokenType::Whitespace, Regex::new(r"^[\s\t]+").unwrap()),
                 (TokenType::StringLiteral, Regex::new("^\".*?\"").unwrap()),
                 (TokenType::Equal, Regex::new(r"^=").unwrap()),
                 (TokenType::Minus, Regex::new(r"^-").unwrap()),

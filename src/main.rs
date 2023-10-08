@@ -1,10 +1,7 @@
 use log::debug;
 use walkdir::WalkDir;
 
-use jib::{
-    get_args,
-    lexer::{Lexer, TokenType},
-};
+use jib::{get_args, lexer::Lexer};
 
 fn main() {
     env_logger::init();
@@ -22,9 +19,6 @@ fn main() {
         let lexer = Lexer::new(filepath);
         for token in lexer.into_iter() {
             debug!("{:?}", token);
-            if token.token_type == TokenType::EndOfFile {
-                break;
-            }
         }
     }
 }
