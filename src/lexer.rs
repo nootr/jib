@@ -96,29 +96,33 @@ impl Lexer {
             filepath,
             offset: 0,
             line_number: 1,
-            regexes: vec![
-                (TokenType::Comment, Regex::new(r"^#[^\n\r]*").unwrap()),
-                (TokenType::TagOpen, Regex::new(r"^<[^/]").unwrap()),
-                (TokenType::TagEndOpen, Regex::new(r"^</").unwrap()),
-                (TokenType::TagClose, Regex::new(r"^>").unwrap()),
-                (TokenType::TagSingleClose, Regex::new(r"^/>").unwrap()),
-                (TokenType::Newline, Regex::new(r"^[\n\r]").unwrap()),
-                (TokenType::Whitespace, Regex::new(r"^[\s\t]+").unwrap()),
-                (TokenType::StringLiteral, Regex::new("^\".*?\"").unwrap()),
-                (TokenType::Equal, Regex::new(r"^=").unwrap()),
-                (TokenType::Minus, Regex::new(r"^-").unwrap()),
-                (TokenType::Plus, Regex::new(r"^\+").unwrap()),
-                (TokenType::CurlyBracketOpen, Regex::new(r"^\{").unwrap()),
-                (TokenType::CurlyBracketClose, Regex::new(r"^\}").unwrap()),
-                (TokenType::BracketOpen, Regex::new(r"^\(").unwrap()),
-                (TokenType::BracketClose, Regex::new(r"^\)").unwrap()),
-                (TokenType::SemiColon, Regex::new(r"^;").unwrap()),
-                (TokenType::Pipe, Regex::new(r"^\|").unwrap()),
-                (TokenType::Comma, Regex::new(r"^,").unwrap()),
-                (TokenType::Period, Regex::new(r"^\.").unwrap()),
-                (TokenType::Text, Regex::new(r"^[\w:][\w\-:]*").unwrap()),
-            ],
+            regexes: Lexer::compile_regexes(),
         }
+    }
+
+    fn compile_regexes() -> Vec<(TokenType, Regex)> {
+        vec![
+            (TokenType::Comment, Regex::new(r"^#[^\n\r]*").unwrap()),
+            (TokenType::TagOpen, Regex::new(r"^<[^/]").unwrap()),
+            (TokenType::TagEndOpen, Regex::new(r"^</").unwrap()),
+            (TokenType::TagClose, Regex::new(r"^>").unwrap()),
+            (TokenType::TagSingleClose, Regex::new(r"^/>").unwrap()),
+            (TokenType::Newline, Regex::new(r"^[\n\r]").unwrap()),
+            (TokenType::Whitespace, Regex::new(r"^[\s\t]+").unwrap()),
+            (TokenType::StringLiteral, Regex::new("^\".*?\"").unwrap()),
+            (TokenType::Equal, Regex::new(r"^=").unwrap()),
+            (TokenType::Minus, Regex::new(r"^-").unwrap()),
+            (TokenType::Plus, Regex::new(r"^\+").unwrap()),
+            (TokenType::CurlyBracketOpen, Regex::new(r"^\{").unwrap()),
+            (TokenType::CurlyBracketClose, Regex::new(r"^\}").unwrap()),
+            (TokenType::BracketOpen, Regex::new(r"^\(").unwrap()),
+            (TokenType::BracketClose, Regex::new(r"^\)").unwrap()),
+            (TokenType::SemiColon, Regex::new(r"^;").unwrap()),
+            (TokenType::Pipe, Regex::new(r"^\|").unwrap()),
+            (TokenType::Comma, Regex::new(r"^,").unwrap()),
+            (TokenType::Period, Regex::new(r"^\.").unwrap()),
+            (TokenType::Text, Regex::new(r"^[\w:][\w\-:]*").unwrap()),
+        ]
     }
 
     fn create_token(&self, token_type: TokenType, value: Option<String>) -> Token {
