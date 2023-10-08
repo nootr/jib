@@ -4,7 +4,7 @@ use regex::Regex;
 use std::fs;
 use std::path::Path;
 
-/// The token type.
+/// The [Token] type.
 #[allow(missing_docs)]
 #[derive(Debug, Default, Eq, PartialEq, Clone)]
 pub enum TokenType {
@@ -48,63 +48,58 @@ pub struct Token {
     pub value: String,
 }
 
-/// Turns source code into a stream of tokens.
-///
-/// Use `Lexer::into_iter()` to iterate over the tokens.
+/// A [Lexer] state in which the source code has not been loaded yet.
+pub struct MissingSource {}
+
+/// A [Lexer] state in which the source code has been loaded.
+pub struct LoadedSource {}
+
+/// A [Lexer] state.
+pub trait LexerState {}
+
+impl LexerState for MissingSource {}
+impl LexerState for LoadedSource {}
+
+/// Turns source code into a stream of [Token]s.
 ///
 /// # Example
+///
+/// Iterate over a mutable reference of the Lexer to get the tokens.
 ///
 /// ```
 /// use jib::lexer::Lexer;
 ///
-/// let mut lexer = Lexer::new();
-/// lexer.load_source("<div>Hello</div>".to_string());
+/// let mut lexer = Lexer::new().load_source("<div>Hello</div>".to_string());
 /// for token in &mut lexer {
 ///     // Do something useful with the token
 /// };
 /// #
-/// # let mut lexer = Lexer::new();
-/// # lexer.load_source("Line 1\nLine 2\nLine 3".to_string());
+/// # let mut lexer = Lexer::new().load_source("Line 1\nLine 2\nLine 3".to_string());
 /// # assert_eq!(lexer.last().unwrap().line_number, 3);
 ///
-/// # let mut lexer = Lexer::new();
-/// # lexer.load_source("<div>Hello</div>".to_string());
+/// # let mut lexer = Lexer::new().load_source("<div>Hello</div>".to_string());
 /// # assert_eq!(lexer.count(), 7);
 /// ```
 #[derive(Debug)]
-pub struct Lexer {
+pub struct Lexer<S: LexerState> {
     source: Option<String>,
     filepath: Option<String>,
     offset: usize,
     line_number: usize,
-    regexes: Vec<(TokenType, Regex)>,
+    regexes: Option<Vec<(TokenType, Regex)>>,
+    marker: std::marker::PhantomData<S>,
 }
 
-impl Lexer {
-    /// Create a new lexer.
+impl Lexer<MissingSource> {
+    /// Creates a new [Lexer].
+    ///
+    /// Compiles a set of regexes, so avoid creating a new Lexer for every source file, but use the
+    /// new Lexer that [Lexer::load_file()] returns.
     pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Load a source file.
-    pub fn load_file(&mut self, filepath: &Path) {
-        self.source = Some(fs::read_to_string(filepath).expect("should be able to read file"));
-        self.filepath = Some(
-            filepath
-                .to_str()
-                .expect("should be able to convert a path to string")
-                .to_string(),
-        );
-        self.offset = 0;
-        self.line_number = 1;
-    }
-
-    /// Load source code.
-    pub fn load_source(&mut self, source: String) {
-        self.source = Some(source);
-        self.filepath = None;
-        self.offset = 0;
-        self.line_number = 1;
+        Self {
+            regexes: Some(Self::compile_regexes()),
+            ..Default::default()
+        }
     }
 
     fn compile_regexes() -> Vec<(TokenType, Regex)> {
@@ -131,7 +126,54 @@ impl Lexer {
             (TokenType::Text, Regex::new(r"^[\w:][\w\-:]*").unwrap()),
         ]
     }
+}
 
+impl<S> Lexer<S>
+where
+    S: LexerState,
+{
+    /// Loads a source file.
+    pub fn load_file(&self, filepath: &Path) -> Lexer<LoadedSource> {
+        Lexer {
+            source: Some(fs::read_to_string(filepath).expect("should be able to read file")),
+            filepath: Some(
+                filepath
+                    .to_str()
+                    .expect("should be able to convert a path to string")
+                    .to_string(),
+            ),
+            regexes: self.regexes.clone(),
+            ..Default::default()
+        }
+    }
+
+    /// Loads source code.
+    pub fn load_source(&self, source: String) -> Lexer<LoadedSource> {
+        Lexer {
+            source: Some(source),
+            regexes: self.regexes.clone(),
+            ..Default::default()
+        }
+    }
+}
+
+impl<S> Default for Lexer<S>
+where
+    S: LexerState,
+{
+    fn default() -> Lexer<S> {
+        Self {
+            source: None,
+            filepath: None,
+            offset: 0,
+            line_number: 1,
+            regexes: None,
+            marker: std::marker::PhantomData,
+        }
+    }
+}
+
+impl Lexer<LoadedSource> {
     fn create_token(&self, token_type: TokenType, value: Option<String>) -> Token {
         Token {
             token_type,
@@ -140,8 +182,12 @@ impl Lexer {
             line_number: self.line_number,
         }
     }
+}
 
-    fn get_token(&mut self) -> Option<Token> {
+impl Iterator for Lexer<LoadedSource> {
+    type Item = Token;
+
+    fn next(&mut self) -> Option<Self::Item> {
         let left_to_parse = &(self
             .source
             .as_ref()
@@ -153,6 +199,8 @@ impl Lexer {
 
         let (token_type, value) = self
             .regexes
+            .as_ref()
+            .expect("should have compiled regexes")
             .iter()
             // Generate regex matches
             .map(|(t, r)| (t, r.captures(left_to_parse)))
@@ -173,25 +221,5 @@ impl Lexer {
         }
 
         Some(self.create_token(token_type.clone(), Some(value)))
-    }
-}
-
-impl Default for Lexer {
-    fn default() -> Self {
-        Self {
-            source: None,
-            filepath: None,
-            offset: 0,
-            line_number: 1,
-            regexes: Lexer::compile_regexes(),
-        }
-    }
-}
-
-impl Iterator for Lexer {
-    type Item = Token;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.get_token()
     }
 }
