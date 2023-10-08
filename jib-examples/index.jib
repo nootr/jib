@@ -1,7 +1,7 @@
 <hgroup>
     <j-show when="title.is_some()" >
         <h1><j-text value="title.unwrap()" /></h1>
-    </j-if>
+    </j-show>
     <p>Count: <j-text value="count"/></p>
     <button on:click="Decrement">-</button>
     <button on:click="Increment">+</button>
