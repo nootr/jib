@@ -152,6 +152,8 @@ impl Lexer {
             .map(|(t, m)| (t, m.unwrap().get(0).unwrap().as_str().to_string()))
             // Take single match
             .next()
+            // Unknown characters are not always errors, we'll let the parser decide what to do
+            // with them.
             .unwrap_or((&TokenType::Unknown, left_to_parse[0..1].to_string()));
 
         self.offset += value.len();
