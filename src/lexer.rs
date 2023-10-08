@@ -57,20 +57,23 @@ pub struct Token {
 /// ```
 /// use jib::lexer::Lexer;
 ///
-/// let lexer = Lexer::from_source("<div>Hello</div>".to_string(), None);
-/// for token in lexer.into_iter() {
+/// let mut lexer = Lexer::new();
+/// lexer.load_source("<div>Hello</div>".to_string());
+/// for token in &mut lexer {
 ///     // Do something useful with the token
 /// };
+/// #
+/// # let mut lexer = Lexer::new();
+/// # lexer.load_source("Line 1\nLine 2\nLine 3".to_string());
+/// # assert_eq!(lexer.last().unwrap().line_number, 3);
 ///
-/// let lexer = Lexer::from_source("<div>Hello</div>".to_string(), None);
-/// assert_eq!(lexer.into_iter().count(), 7);
-///
-/// let lexer = Lexer::from_source("Line 1\nLine 2\nLine 3".to_string(), None);
-/// assert_eq!(lexer.into_iter().last().unwrap().line_number, 3);
+/// # let mut lexer = Lexer::new();
+/// # lexer.load_source("<div>Hello</div>".to_string());
+/// # assert_eq!(lexer.count(), 7);
 /// ```
 #[derive(Debug)]
 pub struct Lexer {
-    file_content: String,
+    source: Option<String>,
     filepath: Option<String>,
     offset: usize,
     line_number: usize,
@@ -78,26 +81,30 @@ pub struct Lexer {
 }
 
 impl Lexer {
-    /// Creates a new lexer.
-    pub fn new(filepath: &Path) -> Lexer {
-        let file_content = fs::read_to_string(filepath).expect("should be able to read file");
-        let filepath = filepath
-            .to_str()
-            .expect("should be able to convert a path to string")
-            .to_string();
-
-        Lexer::from_source(file_content, Some(filepath))
+    /// Create a new lexer.
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    /// Creates a new lexer from a string.
-    pub fn from_source(file_content: String, filepath: Option<String>) -> Lexer {
-        Lexer {
-            file_content,
-            filepath,
-            offset: 0,
-            line_number: 1,
-            regexes: Lexer::compile_regexes(),
-        }
+    /// Load a source file.
+    pub fn load_file(&mut self, filepath: &Path) {
+        self.source = Some(fs::read_to_string(filepath).expect("should be able to read file"));
+        self.filepath = Some(
+            filepath
+                .to_str()
+                .expect("should be able to convert a path to string")
+                .to_string(),
+        );
+        self.offset = 0;
+        self.line_number = 1;
+    }
+
+    /// Load source code.
+    pub fn load_source(&mut self, source: String) {
+        self.source = Some(source);
+        self.filepath = None;
+        self.offset = 0;
+        self.line_number = 1;
     }
 
     fn compile_regexes() -> Vec<(TokenType, Regex)> {
@@ -135,7 +142,10 @@ impl Lexer {
     }
 
     fn get_token(&mut self) -> Option<Token> {
-        let left_to_parse = &self.file_content[self.offset..];
+        let left_to_parse = &(self
+            .source
+            .as_ref()
+            .expect("should have loaded source code"))[self.offset..];
 
         if left_to_parse.is_empty() {
             return None;
@@ -163,6 +173,18 @@ impl Lexer {
         }
 
         Some(self.create_token(token_type.clone(), Some(value)))
+    }
+}
+
+impl Default for Lexer {
+    fn default() -> Self {
+        Self {
+            source: None,
+            filepath: None,
+            offset: 0,
+            line_number: 1,
+            regexes: Lexer::compile_regexes(),
+        }
     }
 }
 
