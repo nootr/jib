@@ -80,6 +80,22 @@ impl LexerState for LoadedSource {}
 /// # let mut lexer = Lexer::new().load_source("<div>Hello</div>".to_string());
 /// # assert_eq!(lexer.count(), 7);
 /// ```
+///
+/// Make sure you do not create a new Lexer for each file when tokenizing multiple files, because
+/// [Lexer::new()] will compile a new set of regexes everytime it's executed.
+///
+/// ```
+/// use jib::lexer::Lexer;
+///
+/// # let files = vec![];
+/// let lexer = Lexer::new();
+/// for file in files {
+///     let mut lexer = lexer.load_file(file);
+///     for token in &mut lexer {
+///         // Do something useful with the token
+///     };
+/// }
+/// ```
 #[derive(Debug)]
 pub struct Lexer<S: LexerState> {
     source: Option<String>,
