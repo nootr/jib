@@ -1,4 +1,4 @@
-//! Lexer library for Jib files
+//! Lexer module for Jib files.
 
 use regex::Regex;
 use std::fs;
@@ -33,7 +33,7 @@ pub enum TokenType {
 }
 
 /// A token containing all the info for parsing, code generation and troubleshooting.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Token {
     /// The token type.
     pub token_type: TokenType,
@@ -103,6 +103,7 @@ pub struct Lexer<S: LexerState> {
     offset: usize,
     line_number: usize,
     regexes: Option<Vec<(TokenType, Regex)>>,
+    peeked_token: Option<Token>,
     marker: std::marker::PhantomData<S>,
 }
 
@@ -184,6 +185,7 @@ where
             offset: 0,
             line_number: 1,
             regexes: None,
+            peeked_token: None,
             marker: std::marker::PhantomData,
         }
     }
@@ -198,12 +200,44 @@ impl Lexer<LoadedSource> {
             line_number: self.line_number,
         }
     }
+
+    /// Returns the next token in the stream.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jib::lexer::{Lexer, TokenType};
+    ///
+    /// let mut lexer = Lexer::new().load_source("<div>".to_string());
+    ///
+    /// assert_eq!(lexer.next().unwrap().token_type, TokenType::TagOpen);
+    /// assert_eq!(lexer.next().unwrap().token_type, TokenType::Text);
+    /// assert_eq!(lexer.peek().unwrap().token_type, TokenType::TagClose);
+    /// assert_eq!(lexer.peek().unwrap().token_type, TokenType::TagClose);
+    /// assert_eq!(lexer.next().unwrap().token_type, TokenType::TagClose);
+    /// assert!(lexer.next().is_none());
+    /// ```
+    pub fn peek(&mut self) -> Option<Token> {
+        match &self.peeked_token {
+            Some(token) => Some(token.clone()),
+            None => {
+                self.peeked_token = self.next();
+                self.peeked_token.clone()
+            }
+        }
+    }
 }
 
 impl Iterator for Lexer<LoadedSource> {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
+        if self.peeked_token.is_some() {
+            let token = self.peeked_token.clone();
+            self.peeked_token = None;
+            return token;
+        }
+
         let left_to_parse = &(self
             .source
             .as_ref()
