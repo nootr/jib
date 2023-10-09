@@ -1,11 +1,23 @@
+use clap::Parser;
 use log::debug;
 use walkdir::WalkDir;
 
-use jib::{get_args, lexer::Lexer};
+use jib::lexer::Lexer;
+
+/// A Jib to Javascript compiler.
+///
+/// Set `RUST_LOG=debug` to enable debug logging.
+#[derive(Parser, Debug)]
+#[command(version)]
+pub struct Args {
+    /// The source directory.
+    #[arg(index = 1, default_value_t = String::from("./"))]
+    pub directory: String,
+}
 
 fn main() {
     env_logger::init();
-    let args = get_args();
+    let args = Args::parse();
 
     let lexer = Lexer::new();
     for entry in WalkDir::new(&args.directory)
