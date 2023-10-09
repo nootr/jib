@@ -96,10 +96,10 @@ You probably already know that Svelte is a framework that does this: Svelte's sy
 ```html
 <!-- index.jib -->
 <hgroup>
-    {% if title.is_some() %}
-    <h1>{title.unwrap()}</h1>
-    {% endif %}
-    <p>Count: {count}</p>
+    <j-show when="title.is_some()" >
+        <h1><j-text value="title.unwrap()" /></h1>
+    </j-show>
+    <p>Count: <j-text value="count"/></p>
     <button on:click="Decrement">-</button>
     <button on:click="Increment">+</button>
 </hgroup>
