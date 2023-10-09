@@ -100,8 +100,8 @@ You probably already know that Svelte is a framework that does this: Svelte's sy
         <h1><j-text value="title.unwrap()" /></h1>
     </j-show>
     <p>Count: <j-text value="count"/></p>
-    <button on:click="Decrement">-</button>
-    <button on:click="Increment">+</button>
+    <button j-on:click="Decrement">-</button>
+    <button j-on:click="Increment">+</button>
 </template>
 
 <style>
