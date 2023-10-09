@@ -200,13 +200,21 @@ impl Lexer<LoadedSource> {
             line_number: self.line_number,
         }
     }
+}
 
+/// A stream of items which allows for peeking.
+pub trait Peekable<Item> {
+    /// Returns the next item in the stream.
+    fn peek(&mut self) -> Option<Item>;
+}
+
+impl Peekable<Token> for Lexer<LoadedSource> {
     /// Returns the next token in the stream.
     ///
     /// # Examples
     ///
     /// ```
-    /// use jib::lexer::{Lexer, TokenType};
+    /// use jib::lexer::{Lexer, Peekable, TokenType};
     ///
     /// let mut lexer = Lexer::new().load_source("<div>".to_string());
     ///
@@ -217,7 +225,7 @@ impl Lexer<LoadedSource> {
     /// assert_eq!(lexer.next().unwrap().token_type, TokenType::TagClose);
     /// assert!(lexer.next().is_none());
     /// ```
-    pub fn peek(&mut self) -> Option<Token> {
+    fn peek(&mut self) -> Option<Token> {
         match &self.peeked_token {
             Some(token) => Some(token.clone()),
             None => {
