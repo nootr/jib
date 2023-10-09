@@ -12,10 +12,12 @@ pub enum TokenType {
     Unknown,
     Comment,
     Text,
-    TagOpen,
-    TagEndOpen,
-    TagClose,
-    TagSingleClose,
+    TagTemplateStart,
+    TagTemplateEnd,
+    TagStyleStart,
+    TagStyleEnd,
+    TagScriptStart,
+    TagScriptEnd,
     Newline,
     Whitespace,
     StringLiteral,
@@ -69,16 +71,16 @@ impl LexerState for LoadedSource {}
 /// ```
 /// use jib::lexer::Lexer;
 ///
-/// let mut lexer = Lexer::new().load_source("<div>Hello</div>".to_string());
+/// let mut lexer = Lexer::new().load_source("<template>Hello</template>".to_string());
 /// for token in &mut lexer {
 ///     // Do something useful with the token
 /// };
 /// #
-/// # let mut lexer = Lexer::new().load_source("Line 1\nLine 2\nLine 3".to_string());
+/// # let mut lexer = Lexer::new().load_source("\n\n".to_string());
 /// # assert_eq!(lexer.last().unwrap().line_number, 3);
 ///
-/// # let mut lexer = Lexer::new().load_source("<div>Hello</div>".to_string());
-/// # assert_eq!(lexer.count(), 7);
+/// # let mut lexer = Lexer::new().load_source("<script>Hello</script>".to_string());
+/// # assert_eq!(lexer.count(), 3);
 /// ```
 ///
 /// Make sure you do not create a new Lexer for each file when tokenizing multiple files, because
@@ -110,7 +112,7 @@ pub struct Lexer<S: LexerState> {
 impl Lexer<MissingSource> {
     /// Creates a new [Lexer].
     ///
-    /// Compiles a set of regexes, so avoid creating a new Lexer for every source file, but use the
+    /// Compiles a set of regexes, so avoid creating a new Lexer for every source file. Instead, use the
     /// new Lexer that [Lexer::load_file()] returns.
     pub fn new() -> Self {
         Self {
@@ -122,10 +124,30 @@ impl Lexer<MissingSource> {
     fn compile_regexes() -> Vec<(TokenType, Regex)> {
         vec![
             (TokenType::Comment, Regex::new(r"^#[^\n\r]*").unwrap()),
-            (TokenType::TagOpen, Regex::new(r"^<[^/]").unwrap()),
-            (TokenType::TagEndOpen, Regex::new(r"^</").unwrap()),
-            (TokenType::TagClose, Regex::new(r"^>").unwrap()),
-            (TokenType::TagSingleClose, Regex::new(r"^/>").unwrap()),
+            (
+                TokenType::TagScriptStart,
+                Regex::new(r"^<\s*script\s*>").unwrap(),
+            ),
+            (
+                TokenType::TagScriptEnd,
+                Regex::new(r"^<\/\s*script\s*>").unwrap(),
+            ),
+            (
+                TokenType::TagStyleStart,
+                Regex::new(r"^<\s*style\s*>").unwrap(),
+            ),
+            (
+                TokenType::TagStyleEnd,
+                Regex::new(r"^<\/\s*style\s*>").unwrap(),
+            ),
+            (
+                TokenType::TagTemplateStart,
+                Regex::new(r"^<\s*template\s*>").unwrap(),
+            ),
+            (
+                TokenType::TagTemplateEnd,
+                Regex::new(r"^<\/\s*template\s*>").unwrap(),
+            ),
             (TokenType::Newline, Regex::new(r"^[\n\r]").unwrap()),
             (TokenType::Whitespace, Regex::new(r"^[\s\t]+").unwrap()),
             (TokenType::StringLiteral, Regex::new("^\".*?\"").unwrap()),
@@ -216,13 +238,13 @@ impl Peekable<Token> for Lexer<LoadedSource> {
     /// ```
     /// use jib::lexer::{Lexer, Peekable, TokenType};
     ///
-    /// let mut lexer = Lexer::new().load_source("<div>".to_string());
+    /// let mut lexer = Lexer::new().load_source("<script>foo</script>".to_string());
     ///
-    /// assert_eq!(lexer.next().unwrap().token_type, TokenType::TagOpen);
+    /// assert_eq!(lexer.next().unwrap().token_type, TokenType::TagScriptStart);
     /// assert_eq!(lexer.next().unwrap().token_type, TokenType::Text);
-    /// assert_eq!(lexer.peek().unwrap().token_type, TokenType::TagClose);
-    /// assert_eq!(lexer.peek().unwrap().token_type, TokenType::TagClose);
-    /// assert_eq!(lexer.next().unwrap().token_type, TokenType::TagClose);
+    /// assert_eq!(lexer.peek().unwrap().token_type, TokenType::TagScriptEnd);
+    /// assert_eq!(lexer.peek().unwrap().token_type, TokenType::TagScriptEnd);
+    /// assert_eq!(lexer.next().unwrap().token_type, TokenType::TagScriptEnd);
     /// assert!(lexer.next().is_none());
     /// ```
     fn peek(&mut self) -> Option<Token> {

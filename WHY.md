@@ -95,14 +95,14 @@ You probably already know that Svelte is a framework that does this: Svelte's sy
 
 ```html
 <!-- index.jib -->
-<hgroup>
+<template>
     <j-show when="title.is_some()" >
         <h1><j-text value="title.unwrap()" /></h1>
     </j-show>
     <p>Count: <j-text value="count"/></p>
     <button on:click="Decrement">-</button>
     <button on:click="Increment">+</button>
-</hgroup>
+</template>
 
 <style>
     h1 {
