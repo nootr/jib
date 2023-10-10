@@ -1,5 +1,6 @@
 //! Lexer module for Jib files.
 
+use log::debug;
 use regex::Regex;
 use std::fs;
 use std::path::Path;
@@ -10,28 +11,30 @@ use std::path::Path;
 pub enum TokenType {
     #[default]
     Unknown,
-    Comment,
-    Text,
-    TagTemplateStart,
-    TagTemplateEnd,
-    TagStyleStart,
-    TagStyleEnd,
-    TagScriptStart,
-    TagScriptEnd,
-    Newline,
-    Whitespace,
-    StringLiteral,
-    Equal,
-    Minus,
-    Plus,
-    CurlyBracketOpen,
-    CurlyBracketClose,
-    BracketOpen,
+
     BracketClose,
-    SemiColon,
-    Pipe,
+    BracketOpen,
     Comma,
+    Comment,
+    CurlyBracketClose,
+    CurlyBracketOpen,
+    Equal,
+    Keyword,
+    Minus,
+    Newline,
     Period,
+    Pipe,
+    Plus,
+    SemiColon,
+    StringLiteral,
+    TagScriptEnd,
+    TagScriptStart,
+    TagStyleEnd,
+    TagStyleStart,
+    TagTemplateEnd,
+    TagTemplateStart,
+    Text,
+    Whitespace,
 }
 
 /// A token containing all the info for parsing, code generation and troubleshooting.
@@ -123,46 +126,49 @@ impl Lexer<MissingSource> {
 
     fn compile_regexes() -> Vec<(TokenType, Regex)> {
         vec![
-            (TokenType::Comment, Regex::new(r"^#[^\n\r]*").unwrap()),
+            (TokenType::Comment, Regex::new(r"^#\s*([^\n\r]*)").unwrap()),
+            (TokenType::Keyword, Regex::new(r"^(enum)\s").unwrap()),
+            (TokenType::Keyword, Regex::new(r"^(type)\s").unwrap()),
+            (TokenType::Keyword, Regex::new(r"^(fn)\s").unwrap()),
             (
                 TokenType::TagScriptStart,
-                Regex::new(r"^<\s*script\s*>").unwrap(),
+                Regex::new(r"^(<\s*script\s*>)").unwrap(),
             ),
             (
                 TokenType::TagScriptEnd,
-                Regex::new(r"^<\/\s*script\s*>").unwrap(),
+                Regex::new(r"^(<\/\s*script\s*>)").unwrap(),
             ),
             (
                 TokenType::TagStyleStart,
-                Regex::new(r"^<\s*style\s*>").unwrap(),
+                Regex::new(r"^(<\s*style\s*>)").unwrap(),
             ),
             (
                 TokenType::TagStyleEnd,
-                Regex::new(r"^<\/\s*style\s*>").unwrap(),
+                Regex::new(r"^(<\/\s*style\s*>)").unwrap(),
             ),
             (
                 TokenType::TagTemplateStart,
-                Regex::new(r"^<\s*template\s*>").unwrap(),
+                Regex::new(r"^(<\s*template\s*>)").unwrap(),
             ),
             (
                 TokenType::TagTemplateEnd,
-                Regex::new(r"^<\/\s*template\s*>").unwrap(),
+                Regex::new(r"^(<\/\s*template\s*>)").unwrap(),
             ),
-            (TokenType::Newline, Regex::new(r"^[\n\r]").unwrap()),
-            (TokenType::Whitespace, Regex::new(r"^[\s\t]+").unwrap()),
-            (TokenType::StringLiteral, Regex::new("^\".*?\"").unwrap()),
-            (TokenType::Equal, Regex::new(r"^=").unwrap()),
-            (TokenType::Minus, Regex::new(r"^-").unwrap()),
-            (TokenType::Plus, Regex::new(r"^\+").unwrap()),
-            (TokenType::CurlyBracketOpen, Regex::new(r"^\{").unwrap()),
-            (TokenType::CurlyBracketClose, Regex::new(r"^\}").unwrap()),
-            (TokenType::BracketOpen, Regex::new(r"^\(").unwrap()),
-            (TokenType::BracketClose, Regex::new(r"^\)").unwrap()),
-            (TokenType::SemiColon, Regex::new(r"^;").unwrap()),
-            (TokenType::Pipe, Regex::new(r"^\|").unwrap()),
-            (TokenType::Comma, Regex::new(r"^,").unwrap()),
-            (TokenType::Period, Regex::new(r"^\.").unwrap()),
-            (TokenType::Text, Regex::new(r"^[\w:][\w\-:]*").unwrap()),
+            (TokenType::Newline, Regex::new(r"^([\n\r])").unwrap()),
+            (TokenType::Whitespace, Regex::new(r"^([\s\t]+)").unwrap()),
+            (TokenType::StringLiteral, Regex::new("^\"(.*?)\"").unwrap()),
+            (TokenType::Equal, Regex::new(r"^(=)").unwrap()),
+            (TokenType::Minus, Regex::new(r"^(-)").unwrap()),
+            (TokenType::Plus, Regex::new(r"^(\+)").unwrap()),
+            (TokenType::CurlyBracketOpen, Regex::new(r"^(\{)").unwrap()),
+            (TokenType::CurlyBracketClose, Regex::new(r"^(\})").unwrap()),
+            (TokenType::BracketOpen, Regex::new(r"^(\()").unwrap()),
+            (TokenType::BracketClose, Regex::new(r"^(\))").unwrap()),
+            (TokenType::SemiColon, Regex::new(r"^(;)").unwrap()),
+            (TokenType::Pipe, Regex::new(r"^(\|)").unwrap()),
+            (TokenType::Comma, Regex::new(r"^(,)").unwrap()),
+            (TokenType::Period, Regex::new(r"^(\.)").unwrap()),
+            (TokenType::Text, Regex::new(r"^([\w:][\w\-:]*)").unwrap()),
         ]
     }
 }
@@ -215,11 +221,45 @@ where
 
 impl Lexer<LoadedSource> {
     fn create_token(&self, token_type: TokenType, value: Option<String>) -> Token {
-        Token {
+        let token = Token {
             token_type,
             value: value.unwrap_or_default(),
             filepath: self.filepath.clone(),
             line_number: self.line_number,
+        };
+        debug!("{:?}", token);
+        token
+    }
+
+    /// Flushes whitespace and newline tokens.
+    pub fn flush_whitespace(&mut self) {
+        while let Some(token) = self.peek() {
+            if token.token_type != TokenType::Whitespace && token.token_type != TokenType::Newline {
+                break;
+            }
+            self.next();
+        }
+    }
+
+    /// Returns an error when an unexpected token is encountered.
+    pub fn expect_token(
+        &mut self,
+        expected_token_type: TokenType,
+    ) -> Result<Token, (Option<usize>, String)> {
+        if let Some(token) = self.next() {
+            if token.token_type == expected_token_type {
+                Ok(token)
+            } else {
+                Err((
+                    Some(token.line_number),
+                    format!(
+                        "Expected {:?}, but got {:?}",
+                        expected_token_type, token.token_type
+                    ),
+                ))
+            }
+        } else {
+            Err((None, "Unexpected end of file".to_string()))
         }
     }
 }
@@ -277,7 +317,7 @@ impl Iterator for Lexer<LoadedSource> {
             return None;
         }
 
-        let (token_type, value) = self
+        let (token_type, value, length) = self
             .regexes
             .as_ref()
             .expect("should have compiled regexes")
@@ -287,14 +327,20 @@ impl Iterator for Lexer<LoadedSource> {
             // Filter matches
             .filter(|(_, m)| m.is_some())
             // Unpack matches
-            .map(|(t, m)| (t, m.unwrap().get(0).unwrap().as_str().to_string()))
+            .map(|(t, m)| {
+                (
+                    t,
+                    m.as_ref().unwrap().get(1).unwrap().as_str().to_string(),
+                    m.unwrap().get(0).unwrap().len(),
+                )
+            })
             // Take single match
             .next()
             // Unknown characters are not always errors, we'll let the parser decide what to do
             // with them.
-            .unwrap_or((&TokenType::Unknown, left_to_parse[0..1].to_string()));
+            .unwrap_or((&TokenType::Unknown, left_to_parse[0..1].to_string(), 1));
 
-        self.offset += value.len();
+        self.offset += length;
 
         if *token_type == TokenType::Newline {
             self.line_number += 1;
