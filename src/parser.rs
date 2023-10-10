@@ -24,7 +24,7 @@ fn parse_template_block(
     while open_blocks > 0 {
         let token = tokens
             .next()
-            .ok_or_else(|| (None, "Unexpected end of file".to_string()))?;
+            .ok_or_else(|| (None, "Missing closing </template> tag.".to_string()))?;
 
         match token.token_type {
             TokenType::TagTemplateStart => open_blocks += 1,
@@ -49,7 +49,7 @@ fn parse_style_block(
     while open_blocks > 0 {
         let token = tokens
             .next()
-            .ok_or_else(|| (None, "Unexpected end of file".to_string()))?;
+            .ok_or_else(|| (None, "Missing closing </style> tag.".to_string()))?;
 
         match token.token_type {
             TokenType::TagStyleStart => open_blocks += 1,
@@ -98,13 +98,10 @@ pub fn parse(
     tokens: &mut (impl Iterator<Item = Token> + Peekable<Token>),
 ) -> Result<ASTNode, (Option<usize>, String)> {
     let mut html_blocks = vec![];
-    loop {
-        if tokens.peek().is_none() {
-            return Ok(ASTNode::Root(html_blocks));
-        }
-
+    while tokens.peek().is_some() {
         if let Some(html_block) = parse_html_block(tokens)? {
             html_blocks.push(html_block);
         }
     }
+    Ok(ASTNode::Root(html_blocks))
 }
